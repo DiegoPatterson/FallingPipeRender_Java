@@ -1,21 +1,156 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
 .gradle
 **/build/
 !**/src/**/build/
-
-# Ignore Gradle GUI config
 gradle-app.setting
-
-# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
+.gradletasknamecache
 !gradle-wrapper.jar
-
-# Avoid ignore Gradle wrappper properties
 !gradle-wrapper.properties
 
-# Cache of project
-.gradletasknamecache
+# Ant
+dist/
+build/
 
-# Eclipse Gradle plugin generated files
-# Eclipse Core
-.project
-# JDT-specific (Eclipse Java Development Tools)
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+*.ids
+*.orig
+*.swp
+*.swo
+*~
+*.class
+*.log
+out/
+
+# Eclipse
 .classpath
+.project
+.settings/
+bin/
+.metadata
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.cproject
+.c9/
+*.launch
+.loadpath
+.factorypath
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Compiled Output
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Log files
+*.log
+*.log.*
+/logs
+
+# Package Files
+*.jar
+!gradle-wrapper.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Runtime data
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.AppleDouble
+.LSOverride
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE misc
+*.sublime-project
+*.sublime-workspace
+
+# Spring Boot
+*.property
+
+# Local environment
+.env
+.env.local
+*.local
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# IDE hidden files
+.recommenders/
+.settings/
+.vscode-settings/
+
+# STS (Spring Tool Suite)
+.sts4-cache/
+
+# Maven Wrapper
+.mvn/
+
+# JVM crash log
+hs_err_pid*.log
+
+# Miscellaneous
+.cache/
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+target
+.vscode
+nodenv.txt
