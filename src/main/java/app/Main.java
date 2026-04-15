@@ -50,9 +50,14 @@ public final class Main {
         private static final float PIPE_LENGTH = 2.0f;
         private static final float PIPE_START_X = 0.15f;
         private static final float PIPE_Z = 0.0f;
-        private static final float PIPE_ROLL_DURATION = 1.35f;
-        private static final float PIPE_FALL_DURATION = 1.1f;
-        private static final float PIPE_FALL_FORWARD = 1.25f;
+        private static final float PIPE_ROLL_DURATION = 1.15f;
+        private static final float PIPE_FALL_DURATION = 0.90f;
+        private static final float PIPE_FALL_FORWARD = 1.35f;
+        private static final float PIPE_BOUNCE_DURATION = 1.25f;
+        private static final float PIPE_BOUNCE_HEIGHT = 0.24f;
+        private static final float PIPE_BOUNCE_DAMPING = 2.2f;
+        private static final float PIPE_GROUND_ROLL_DURATION = 2.40f;
+        private static final float PIPE_GROUND_ROLL_DISTANCE = 1.35f;
 
         private long window;
         private int width = START_WIDTH;
@@ -383,19 +388,41 @@ public final class Main {
                 return new PipePose(x, tableY, PIPE_Z, rollDeg, 0.30f, false);
             }
 
-            float fallTime = Math.min(t - PIPE_ROLL_DURATION, PIPE_FALL_DURATION);
+            float rawFallTime = t - PIPE_ROLL_DURATION;
+            float fallTime = Math.min(rawFallTime, PIPE_FALL_DURATION);
             float xVelocity = PIPE_FALL_FORWARD / PIPE_FALL_DURATION;
             float x = rollEndX + xVelocity * fallTime;
+            float postImpactTime = Math.max(0.0f, rawFallTime - PIPE_FALL_DURATION);
+
+            if (postImpactTime > 0.0f) {
+                float groundRollProgress = clamp(postImpactTime / PIPE_GROUND_ROLL_DURATION, 0.0f, 1.0f);
+                x += PIPE_GROUND_ROLL_DISTANCE * easeOutBack(groundRollProgress);
+            }
 
             float floorContactY = FLOOR_Y + PIPE_RADIUS;
             float initialDropSpeed = 0.55f;
             float gravity = (2.0f * ((tableY - floorContactY) - initialDropSpeed * PIPE_FALL_DURATION))
                     / (PIPE_FALL_DURATION * PIPE_FALL_DURATION);
             float y = tableY - initialDropSpeed * fallTime - 0.5f * gravity * fallTime * fallTime;
-            boolean hitGround = y <= floorContactY;
+            boolean hitGround = rawFallTime >= PIPE_FALL_DURATION;
+
+            if (y < floorContactY) {
+                y = floorContactY;
+            }
 
             if (hitGround) {
-                y = floorContactY;
+                float bounceTime = postImpactTime;
+                if (bounceTime <= PIPE_BOUNCE_DURATION) {
+                    float envelope = (float) Math.exp(-PIPE_BOUNCE_DAMPING * bounceTime);
+                    float wave = (float) Math.sin(13.0f * bounceTime);
+                    float bounce = PIPE_BOUNCE_HEIGHT * envelope * wave;
+                    if (bounce < 0.0f) {
+                        bounce = 0.0f;
+                    }
+                    y = floorContactY + bounce;
+                } else {
+                    y = floorContactY;
+                }
             }
 
             float distance = (x - PIPE_START_X);
