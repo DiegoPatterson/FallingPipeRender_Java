@@ -141,6 +141,14 @@ public final class Main {
         private static final float PIPE_BOUNCE_DAMPING = 2.2f;
         private static final float PIPE_GROUND_ROLL_DURATION = 2.40f;
         private static final float PIPE_GROUND_ROLL_DISTANCE = 1.35f;
+        private static final float PIPE_TABLE_TILT_DEG = -52.0f;
+        private static final float PIPE_FALL_TILT_DEG = -96.0f;
+
+        // Directional light used for toon shading bands.
+        private static final float LIGHT_X = 0.50f;
+        private static final float LIGHT_Y = 0.85f;
+        private static final float LIGHT_Z = 0.20f;
+        private static final float SHADOW_EPSILON_Y = 0.006f;
 
         private long window;
         private int width = START_WIDTH;
@@ -324,10 +332,11 @@ public final class Main {
             glTranslatef(0.0f, -1.1f, 0.0f);
 
             drawFloor();
-            drawTable();
 
             PipePose pose = getPipePose(animationTime);
+            drawTableShadow();
             drawPipeShadow(pose);
+            drawTable();
             drawPipe(pose);
 
             glfwSetWindowTitle(window,
@@ -347,7 +356,7 @@ public final class Main {
 
         private void drawFloor() {
             floorTexture.bind();
-            glColor3f(1.0f, 1.0f, 1.0f);
+            applyToonColor(0.0f, 1.0f, 0.0f);
             glBegin(GL_QUADS);
             glNormal3f(0.0f, 1.0f, 0.0f);
             glTexCoord2f(0.0f, 0.0f);
@@ -424,21 +433,27 @@ public final class Main {
             glBegin(GL_QUADS);
 
             glNormal3f(0.0f, 1.0f, 0.0f);
+            applyToonColor(0.0f, 1.0f, 0.0f);
             quad(minX, maxY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ, minX, maxY, maxZ, uScale, vScale);
 
             glNormal3f(0.0f, -1.0f, 0.0f);
+            applyToonColor(0.0f, -1.0f, 0.0f);
             quad(minX, minY, maxZ, maxX, minY, maxZ, maxX, minY, minZ, minX, minY, minZ, uScale, vScale);
 
             glNormal3f(0.0f, 0.0f, 1.0f);
+            applyToonColor(0.0f, 0.0f, 1.0f);
             quad(minX, minY, maxZ, maxX, minY, maxZ, maxX, maxY, maxZ, minX, maxY, maxZ, uScale, vScale);
 
             glNormal3f(0.0f, 0.0f, -1.0f);
+            applyToonColor(0.0f, 0.0f, -1.0f);
             quad(maxX, minY, minZ, minX, minY, minZ, minX, maxY, minZ, maxX, maxY, minZ, uScale, vScale);
 
             glNormal3f(1.0f, 0.0f, 0.0f);
+            applyToonColor(1.0f, 0.0f, 0.0f);
             quad(maxX, minY, maxZ, maxX, minY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ, uScale, vScale);
 
             glNormal3f(-1.0f, 0.0f, 0.0f);
+            applyToonColor(-1.0f, 0.0f, 0.0f);
             quad(minX, minY, minZ, minX, minY, maxZ, minX, maxY, maxZ, minX, maxY, minZ, uScale, vScale);
 
             glEnd();
@@ -466,8 +481,7 @@ public final class Main {
             if (t <= PIPE_ROLL_DURATION) {
                 float p = clamp(t / PIPE_ROLL_DURATION, 0.0f, 1.0f);
                 float x = lerp(PIPE_START_X, rollEndX, p);
-                float distance = x - PIPE_START_X;
-                float rollDeg = (float) Math.toDegrees(-(distance / PIPE_RADIUS));
+                float rollDeg = lerp(0.0f, PIPE_TABLE_TILT_DEG, easeOutCubic(p));
                 return new PipePose(x, tableY, PIPE_Z, rollDeg, 0.30f, false);
             }
 
@@ -508,8 +522,8 @@ public final class Main {
                 }
             }
 
-            float distance = (x - PIPE_START_X);
-            float rollDeg = (float) Math.toDegrees(-(distance / PIPE_RADIUS));
+            float fallProgress = clamp(rawFallTime / PIPE_FALL_DURATION, 0.0f, 1.0f);
+            float rollDeg = lerp(PIPE_TABLE_TILT_DEG, PIPE_FALL_TILT_DEG, easeInOutCubic(fallProgress));
             float shadow = hitGround ? 0.36f : 0.24f;
             return new PipePose(x, y, PIPE_Z, rollDeg, shadow, hitGround);
         }
@@ -520,8 +534,9 @@ public final class Main {
 
             glPushMatrix();
             glTranslatef(pose.x, pose.y, pose.z);
-            glRotatef(pose.rollDeg, 0.0f, 0.0f, 1.0f);
-            glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+            // Align cylinder length to world X so it lies naturally across the table.
+            glRotatef(-90.0f, 0.0f, 0.0f, 1.0f);
+            glRotatef(pose.rollDeg, 1.0f, 0.0f, 0.0f);
             drawCylinderY(PIPE_RADIUS, PIPE_LENGTH, 30);
             glPopMatrix();
         }
@@ -539,6 +554,7 @@ public final class Main {
                 float u = (float) i / segments;
 
                 glNormal3f((float) Math.cos(a), 0.0f, (float) Math.sin(a));
+                applyToonColor((float) Math.cos(a), 0.0f, (float) Math.sin(a));
                 glTexCoord2f(u, 0.0f);
                 glVertex3f(x, yMin, z);
                 glTexCoord2f(u, 2.2f);
@@ -556,6 +572,7 @@ public final class Main {
                 float u = (float) i / segments;
 
                 glNormal3f(-(float) Math.cos(a), 0.0f, -(float) Math.sin(a));
+                applyToonColor(-(float) Math.cos(a), 0.0f, -(float) Math.sin(a));
                 glTexCoord2f(u, 0.0f);
                 glVertex3f(x, yMin, z);
                 glTexCoord2f(u, 2.2f);
@@ -573,6 +590,7 @@ public final class Main {
                 float zInner = (float) Math.sin(a) * innerRadius;
 
                 glNormal3f(0.0f, 1.0f, 0.0f);
+                applyToonColor(0.0f, 1.0f, 0.0f);
                 glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
                 glVertex3f(xInner, yMax, zInner);
                 glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
@@ -589,6 +607,7 @@ public final class Main {
                 float zInner = (float) Math.sin(a) * innerRadius;
 
                 glNormal3f(0.0f, -1.0f, 0.0f);
+                applyToonColor(0.0f, -1.0f, 0.0f);
                 glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
                 glVertex3f(xOuter, yMin, zOuter);
                 glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
@@ -597,17 +616,69 @@ public final class Main {
             glEnd();
         }
 
+        private void applyToonColor(float nx, float ny, float nz) {
+            float ndotl = nx * LIGHT_X + ny * LIGHT_Y + nz * LIGHT_Z;
+            float lit = quantizeToon(Math.max(0.0f, ndotl));
+            glColor3f(lit, lit, lit);
+        }
+
+        private float quantizeToon(float intensity) {
+            if (intensity > 0.85f) {
+                return 1.0f;
+            }
+            if (intensity > 0.55f) {
+                return 0.78f;
+            }
+            if (intensity > 0.25f) {
+                return 0.54f;
+            }
+            return 0.32f;
+        }
+
         private void drawPipeShadow(PipePose pose) {
             glDisable(GL_TEXTURE_2D);
             glColor4f(0.0f, 0.0f, 0.0f, pose.shadowAlpha);
+
+            float height = Math.max(0.0f, pose.y - FLOOR_Y);
+            float shadowX = pose.x - projectToFloorX(height);
+            float shadowZ = pose.z - projectToFloorZ(height);
+
             glPushMatrix();
-            glTranslatef(pose.x, FLOOR_Y + 0.01f, pose.z);
-            glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-            glScalef(0.90f, 0.52f, 1.0f);
+            glTranslatef(shadowX, FLOOR_Y + SHADOW_EPSILON_Y, shadowZ);
+            glRotatef(90.0f, 1.0f, 50.0f, 5.0f);
+            glScalef(PIPE_LENGTH * 0.58f, PIPE_RADIUS * 1.55f, 1.0f);
             drawDisk(36);
             glPopMatrix();
+
             glEnable(GL_TEXTURE_2D);
             glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+
+        private void drawTableShadow() {
+            glDisable(GL_TEXTURE_2D);
+            glColor4f(0.0f, 0.0f, 0.0f, 0.22f);
+
+            float topHeight = TABLE_SURFACE_Y - FLOOR_Y;
+            float dx = projectToFloorX(topHeight);
+            float dz = projectToFloorZ(topHeight);
+
+            glBegin(GL_QUADS);
+            glVertex3f(TABLE_TOP_MIN_X + dx, FLOOR_Y + SHADOW_EPSILON_Y, TABLE_TOP_MIN_Z + dz);
+            glVertex3f(TABLE_TOP_MAX_X + dx, FLOOR_Y + SHADOW_EPSILON_Y, TABLE_TOP_MIN_Z + dz);
+            glVertex3f(TABLE_TOP_MAX_X + dx, FLOOR_Y + SHADOW_EPSILON_Y, TABLE_TOP_MAX_Z + dz);
+            glVertex3f(TABLE_TOP_MIN_X + dx, FLOOR_Y + SHADOW_EPSILON_Y, TABLE_TOP_MAX_Z + dz);
+            glEnd();
+
+            glEnable(GL_TEXTURE_2D);
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+
+        private float projectToFloorX(float heightAboveFloor) {
+            return (LIGHT_X / LIGHT_Y) * heightAboveFloor;
+        }
+
+        private float projectToFloorZ(float heightAboveFloor) {
+            return (LIGHT_Z / LIGHT_Y) * heightAboveFloor;
         }
 
         private void drawDisk(int segments) {
