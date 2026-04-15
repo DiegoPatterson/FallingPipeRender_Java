@@ -19,10 +19,23 @@ import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.loader.ObjLoader;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.math.Vector3;
 
 public class FloorRendererApp extends ApplicationAdapter {
     private static final String FLOOR_MODEL_PATH = "Assets/Models/floor.obj";
     private static final String FLOOR_TEXTURE_PATH = "Assets/Textures/Tile-texture.jpg";
+    private static final String TABLE_MODEL_PATH = "Assets/Models/table.obj";
+    private static final String TABLE_TEXTURE_PATH = "Assets/Textures/Wood-texture.jpg";
+    private static final String PIPE_MODEL_PATH = "Assets/Models/pipe.obj";
+    private static final String PIPE_TEXTURE_PATH = "Assets/Textures/photo-metal-texture-pattern.jpg";
+
+    private static final float PIPE_RADIUS = 0.09f;
+    private static final float PIPE_LENGTH = 1.2f;
+    private static final float TABLE_TOP_Y = 0.89f;
+    private static final float FLOOR_TOP_Y = 0.05f;
+    private static final float PIPE_START_Y = TABLE_TOP_Y + PIPE_RADIUS;
+    private static final float PIPE_FLOOR_Y = FLOOR_TOP_Y + PIPE_RADIUS;
+    private static final float GRAVITY = -6.2f;
 
     private PerspectiveCamera camera;
     private CameraInputController cameraController;
@@ -32,6 +45,24 @@ public class FloorRendererApp extends ApplicationAdapter {
     private Model floorModel;
     private ModelInstance floorInstance;
     private Texture floorTexture;
+
+    private Model tableModel;
+    private ModelInstance tableInstance;
+    private Texture tableTexture;
+
+    private Model pipeModel;
+    private ModelInstance pipeInstance;
+    private Texture pipeTexture;
+
+    private float animationTimer;
+    private float pipeX;
+    private float pipeY;
+    private float pipeZ;
+    private float pipeVelocityX;
+    private float pipeVelocityY;
+    private float pipeSpin;
+    private boolean pipeFalling;
+    private boolean pipeLanded;
 
     @Override
     public void create() {
@@ -53,6 +84,14 @@ public class FloorRendererApp extends ApplicationAdapter {
 
         floorModel = loadFloorModelOrFallback();
         floorInstance = new ModelInstance(floorModel);
+
+        tableModel = loadTableModelOrFallback();
+        tableInstance = new ModelInstance(tableModel);
+        tableInstance.transform.setToTranslation(0f, 0.05f, 0f);
+
+        pipeModel = loadPipeModelOrFallback();
+        pipeInstance = new ModelInstance(pipeModel);
+        resetPipeState();
     }
 
     private Model loadFloorModelOrFallback() {
@@ -103,6 +142,190 @@ public class FloorRendererApp extends ApplicationAdapter {
         }
     }
 
+    private Model loadTableModelOrFallback() {
+        tableTexture = loadTableTexture();
+
+        FileHandle modelFile = Gdx.files.internal(TABLE_MODEL_PATH);
+        if (modelFile.exists()) {
+            ObjLoader objLoader = new ObjLoader();
+            Model model = objLoader.loadModel(modelFile);
+            applyTableTexture(model, tableTexture);
+            return model;
+        }
+
+        ModelBuilder modelBuilder = new ModelBuilder();
+        Material material = new Material(ColorAttribute.createDiffuse(new Color(0.55f, 0.38f, 0.24f, 1f)));
+        if (tableTexture != null) {
+            material.set(TextureAttribute.createDiffuse(tableTexture));
+        }
+
+        modelBuilder.begin();
+
+        modelBuilder.part(
+            "tableTop",
+            GL20.GL_TRIANGLES,
+            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates,
+            material
+        ).box(0f, 0.78f, 0f, 3f, 0.12f, 2f);
+
+        float legHeight = 0.78f;
+        float legSize = 0.15f;
+        float xOffset = 1.35f;
+        float zOffset = 0.85f;
+
+        modelBuilder.part(
+            "legFL",
+            GL20.GL_TRIANGLES,
+            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates,
+            material
+        ).box(-xOffset, legHeight / 2f, -zOffset, legSize, legHeight, legSize);
+
+        modelBuilder.part(
+            "legFR",
+            GL20.GL_TRIANGLES,
+            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates,
+            material
+        ).box(xOffset, legHeight / 2f, -zOffset, legSize, legHeight, legSize);
+
+        modelBuilder.part(
+            "legBL",
+            GL20.GL_TRIANGLES,
+            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates,
+            material
+        ).box(-xOffset, legHeight / 2f, zOffset, legSize, legHeight, legSize);
+
+        modelBuilder.part(
+            "legBR",
+            GL20.GL_TRIANGLES,
+            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates,
+            material
+        ).box(xOffset, legHeight / 2f, zOffset, legSize, legHeight, legSize);
+
+        return modelBuilder.end();
+    }
+
+    private Texture loadTableTexture() {
+        FileHandle textureFile = Gdx.files.internal(TABLE_TEXTURE_PATH);
+        if (!textureFile.exists()) {
+            return null;
+        }
+
+        Texture texture = new Texture(textureFile);
+        texture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+        return texture;
+    }
+
+    private void applyTableTexture(Model model, Texture texture) {
+        for (Material material : model.materials) {
+            if (texture != null) {
+                material.set(TextureAttribute.createDiffuse(texture));
+                material.remove(ColorAttribute.Diffuse);
+            } else if (!material.has(ColorAttribute.Diffuse)) {
+                material.set(ColorAttribute.createDiffuse(new Color(0.55f, 0.38f, 0.24f, 1f)));
+            }
+        }
+    }
+
+    private Model loadPipeModelOrFallback() {
+        pipeTexture = loadPipeTexture();
+
+        FileHandle modelFile = Gdx.files.internal(PIPE_MODEL_PATH);
+        if (modelFile.exists()) {
+            ObjLoader objLoader = new ObjLoader();
+            Model model = objLoader.loadModel(modelFile);
+            applyPipeTexture(model, pipeTexture);
+            return model;
+        }
+
+        ModelBuilder modelBuilder = new ModelBuilder();
+        Material material = new Material(ColorAttribute.createDiffuse(new Color(0.73f, 0.73f, 0.75f, 1f)));
+        if (pipeTexture != null) {
+            material.set(TextureAttribute.createDiffuse(pipeTexture));
+        }
+
+        return modelBuilder.createCylinder(
+            PIPE_RADIUS * 2f,
+            PIPE_LENGTH,
+            PIPE_RADIUS * 2f,
+            24,
+            material,
+            VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal | VertexAttributes.Usage.TextureCoordinates
+        );
+    }
+
+    private Texture loadPipeTexture() {
+        FileHandle textureFile = Gdx.files.internal(PIPE_TEXTURE_PATH);
+        if (!textureFile.exists()) {
+            return null;
+        }
+
+        Texture texture = new Texture(textureFile);
+        texture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+        return texture;
+    }
+
+    private void applyPipeTexture(Model model, Texture texture) {
+        for (Material material : model.materials) {
+            if (texture != null) {
+                material.set(TextureAttribute.createDiffuse(texture));
+                material.remove(ColorAttribute.Diffuse);
+            } else if (!material.has(ColorAttribute.Diffuse)) {
+                material.set(ColorAttribute.createDiffuse(new Color(0.73f, 0.73f, 0.75f, 1f)));
+            }
+        }
+    }
+
+    private void resetPipeState() {
+        animationTimer = 0f;
+        pipeX = -0.9f;
+        pipeY = PIPE_START_Y;
+        pipeZ = 0f;
+        pipeVelocityX = 0f;
+        pipeVelocityY = 0f;
+        pipeSpin = 0f;
+        pipeFalling = false;
+        pipeLanded = false;
+        updatePipeTransform();
+    }
+
+    private void updatePipeAnimation(float delta) {
+        animationTimer += delta;
+
+        if (!pipeFalling && !pipeLanded) {
+            // Briefly slide the pipe across the tabletop before it tips off the edge.
+            pipeX += 0.45f * delta;
+            pipeSpin += 35f * delta;
+            if (animationTimer >= 1.5f) {
+                pipeFalling = true;
+                pipeVelocityX = 1.25f;
+                pipeVelocityY = 0f;
+            }
+        }
+
+        if (pipeFalling) {
+            pipeVelocityY += GRAVITY * delta;
+            pipeX += pipeVelocityX * delta;
+            pipeY += pipeVelocityY * delta;
+            pipeSpin += 280f * delta;
+
+            if (pipeY <= PIPE_FLOOR_Y) {
+                pipeY = PIPE_FLOOR_Y;
+                pipeVelocityY = 0f;
+                pipeFalling = false;
+                pipeLanded = true;
+            }
+        }
+
+        updatePipeTransform();
+    }
+
+    private void updatePipeTransform() {
+        pipeInstance.transform.idt()
+            .rotate(Vector3.Z, -90f)
+            .rotate(Vector3.X, pipeSpin)
+            .setTranslation(pipeX, pipeY, pipeZ);
+    }
+
     @Override
     public void resize(int width, int height) {
         camera.viewportWidth = width;
@@ -113,6 +336,7 @@ public class FloorRendererApp extends ApplicationAdapter {
     @Override
     public void render() {
         cameraController.update();
+        updatePipeAnimation(Gdx.graphics.getDeltaTime());
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClearColor(0.08f, 0.1f, 0.12f, 1f);
@@ -120,6 +344,8 @@ public class FloorRendererApp extends ApplicationAdapter {
 
         modelBatch.begin(camera);
         modelBatch.render(floorInstance, environment);
+        modelBatch.render(tableInstance, environment);
+        modelBatch.render(pipeInstance, environment);
         modelBatch.end();
     }
 
@@ -128,8 +354,20 @@ public class FloorRendererApp extends ApplicationAdapter {
         if (floorTexture != null) {
             floorTexture.dispose();
         }
+        if (tableTexture != null) {
+            tableTexture.dispose();
+        }
+        if (pipeTexture != null) {
+            pipeTexture.dispose();
+        }
         if (floorModel != null) {
             floorModel.dispose();
+        }
+        if (tableModel != null) {
+            tableModel.dispose();
+        }
+        if (pipeModel != null) {
+            pipeModel.dispose();
         }
         if (modelBatch != null) {
             modelBatch.dispose();
