@@ -447,6 +447,7 @@ public final class Main {
             float yMin = -length * 0.5f;
             float yMax = length * 0.5f;
 
+            // Outer hollow tube (sides only - no end caps for see-through effect)
             glBegin(GL_QUAD_STRIP);
             for (int i = 0; i <= segments; i++) {
                 float a = (float) (Math.PI * 2.0 * i / segments);
@@ -462,29 +463,53 @@ public final class Main {
             }
             glEnd();
 
-            glBegin(GL_TRIANGLE_FAN);
-            glNormal3f(0.0f, 1.0f, 0.0f);
-            glTexCoord2f(0.5f, 0.5f);
-            glVertex3f(0.0f, yMax, 0.0f);
+            // Inner hollow cylinder (to show interior thickness)
+            float innerRadius = radius * 0.85f;
+            glBegin(GL_QUAD_STRIP);
             for (int i = 0; i <= segments; i++) {
                 float a = (float) (Math.PI * 2.0 * i / segments);
-                float x = (float) Math.cos(a) * radius;
-                float z = (float) Math.sin(a) * radius;
-                glTexCoord2f(0.5f + x / (2.0f * radius), 0.5f + z / (2.0f * radius));
+                float x = (float) Math.cos(a) * innerRadius;
+                float z = (float) Math.sin(a) * innerRadius;
+                float u = (float) i / segments;
+
+                glNormal3f(-(float) Math.cos(a), 0.0f, -(float) Math.sin(a));
+                glTexCoord2f(u, 0.0f);
+                glVertex3f(x, yMin, z);
+                glTexCoord2f(u, 2.2f);
                 glVertex3f(x, yMax, z);
             }
             glEnd();
 
-            glBegin(GL_TRIANGLE_FAN);
-            glNormal3f(0.0f, -1.0f, 0.0f);
-            glTexCoord2f(0.5f, 0.5f);
-            glVertex3f(0.0f, yMin, 0.0f);
-            for (int i = segments; i >= 0; i--) {
+            // End caps (rim rings to show metal thickness at ends)
+            glBegin(GL_QUAD_STRIP);
+            for (int i = 0; i <= segments; i++) {
                 float a = (float) (Math.PI * 2.0 * i / segments);
-                float x = (float) Math.cos(a) * radius;
-                float z = (float) Math.sin(a) * radius;
-                glTexCoord2f(0.5f + x / (2.0f * radius), 0.5f + z / (2.0f * radius));
-                glVertex3f(x, yMin, z);
+                float xOuter = (float) Math.cos(a) * radius;
+                float zOuter = (float) Math.sin(a) * radius;
+                float xInner = (float) Math.cos(a) * innerRadius;
+                float zInner = (float) Math.sin(a) * innerRadius;
+
+                glNormal3f(0.0f, 1.0f, 0.0f);
+                glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
+                glVertex3f(xInner, yMax, zInner);
+                glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
+                glVertex3f(xOuter, yMax, zOuter);
+            }
+            glEnd();
+
+            glBegin(GL_QUAD_STRIP);
+            for (int i = 0; i <= segments; i++) {
+                float a = (float) (Math.PI * 2.0 * i / segments);
+                float xOuter = (float) Math.cos(a) * radius;
+                float zOuter = (float) Math.sin(a) * radius;
+                float xInner = (float) Math.cos(a) * innerRadius;
+                float zInner = (float) Math.sin(a) * innerRadius;
+
+                glNormal3f(0.0f, -1.0f, 0.0f);
+                glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
+                glVertex3f(xOuter, yMin, zOuter);
+                glTexCoord2f((xOuter + radius) / (2.0f * radius), (zOuter + radius) / (2.0f * radius));
+                glVertex3f(xInner, yMin, zInner);
             }
             glEnd();
         }
