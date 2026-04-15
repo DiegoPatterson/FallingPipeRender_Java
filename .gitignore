@@ -36,6 +36,7 @@ build/
 *.class
 *.log
 out/
+.natives/
 
 # Eclipse
 .classpath
