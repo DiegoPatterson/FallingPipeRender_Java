@@ -150,7 +150,7 @@ public final class Main {
             floorTexture = Texture.load("Assets/Textures/Tile-texture.jpg", true);
             woodTexture = Texture.load("Assets/Textures/Wood-texture.jpg", true);
             metalTexture = Texture.load("Assets/Textures/photo-metal-texture-pattern.jpg", true);
-            impactSound = new ImpactSound("Assets/Sounds/jixaw-metal-pipe-falling-sound.mp3");
+            impactSound = new ImpactSound("Assets/Sounds/jixaw-metal-pipe-falling-sound.wav");
         }
 
         private void restart() {
@@ -621,16 +621,25 @@ public final class Main {
             private final Clip clip;
 
             ImpactSound(String path) {
-                Clip loaded = null;
+                Clip loadedClip = null;
+
                 try {
-                    File file = new File(path);
-                    AudioInputStream stream = AudioSystem.getAudioInputStream(file);
-                    loaded = AudioSystem.getClip();
-                    loaded.open(stream);
-                } catch (Exception exception) {
-                    System.err.println("Impact sound could not be loaded: " + exception.getMessage());
+                    loadedClip = loadClipFromFile(new File(path));
+                } catch (Exception firstError) {
+                    File wavFallback = wavFallback(path);
+                    if (wavFallback != null && wavFallback.exists()) {
+                        try {
+                            loadedClip = loadClipFromFile(wavFallback);
+                        } catch (Exception secondError) {
+                            System.err.println("Impact sound could not be loaded from MP3 or WAV fallback: " + secondError.getMessage());
+                        }
+                    } else {
+                        System.err.println("Impact sound could not be loaded in-app: " + firstError.getMessage());
+                        System.err.println("Tip: place a WAV file next to the MP3 with the same name for reliable playback.");
+                    }
                 }
-                clip = loaded;
+
+                clip = loadedClip;
             }
 
             void play() {
@@ -642,6 +651,22 @@ public final class Main {
                 }
                 clip.setFramePosition(0);
                 clip.start();
+            }
+
+            private Clip loadClipFromFile(File file) throws Exception {
+                AudioInputStream stream = AudioSystem.getAudioInputStream(file);
+                Clip loaded = AudioSystem.getClip();
+                loaded.open(stream);
+                return loaded;
+            }
+
+            private File wavFallback(String originalPath) {
+                String lower = originalPath.toLowerCase();
+                if (!lower.endsWith(".mp3")) {
+                    return null;
+                }
+                String wavPath = originalPath.substring(0, originalPath.length() - 4) + ".wav";
+                return new File(wavPath);
             }
 
             void close() {
