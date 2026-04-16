@@ -12,6 +12,8 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttributes;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
@@ -30,6 +32,12 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 
 public class FloorRendererApp extends ApplicationAdapter {
+    private enum CameraPreset {
+        TOP_DOWN,
+        FRONT,
+        BACK
+    }
+
     private static final String FLOOR_MODEL_PATH = "Assets/Models/floor.obj";
     private static final String FLOOR_TEXTURE_PATH = "Assets/Textures/Tile-texture.jpg";
     private static final String TABLE_MODEL_PATH = "Assets/Models/table.obj";
@@ -70,6 +78,8 @@ public class FloorRendererApp extends ApplicationAdapter {
     private Environment environment;
     private ModelBatch modelBatch;
     private ImmediateModeRenderer20 shadowRenderer;
+    private SpriteBatch hudBatch;
+    private BitmapFont hudFont;
 
     private Model floorModel;
     private ModelInstance floorInstance;
@@ -127,6 +137,8 @@ public class FloorRendererApp extends ApplicationAdapter {
     public void create() {
         modelBatch = new ModelBatch();
         shadowRenderer = new ImmediateModeRenderer20(40000, false, true, 0);
+        hudBatch = new SpriteBatch();
+        hudFont = new BitmapFont();
 
         camera = new PerspectiveCamera(67f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         camera.position.set(8f, 7f, 8f);
@@ -146,6 +158,18 @@ public class FloorRendererApp extends ApplicationAdapter {
                 }
                 if (keycode == Input.Keys.SPACE) {
                     replayAnimation();
+                    return true;
+                }
+                if (keycode == Input.Keys.NUM_1) {
+                    applyCameraPreset(CameraPreset.TOP_DOWN);
+                    return true;
+                }
+                if (keycode == Input.Keys.NUM_2) {
+                    applyCameraPreset(CameraPreset.FRONT);
+                    return true;
+                }
+                if (keycode == Input.Keys.NUM_3) {
+                    applyCameraPreset(CameraPreset.BACK);
                     return true;
                 }
                 return false;
@@ -194,6 +218,29 @@ public class FloorRendererApp extends ApplicationAdapter {
 
     private void replayAnimation() {
         resetPipeState();
+    }
+
+    private void applyCameraPreset(CameraPreset preset) {
+        switch (preset) {
+            case TOP_DOWN:
+                camera.position.set(0f, 12f, 0.01f);
+                camera.up.set(0f, 0f, -1f);
+                break;
+            case FRONT:
+                camera.position.set(0f, 3.2f, 9f);
+                camera.up.set(Vector3.Y);
+                break;
+            case BACK:
+                camera.position.set(0f, 3.2f, -9f);
+                camera.up.set(Vector3.Y);
+                break;
+            default:
+                break;
+        }
+
+        camera.lookAt(0f, 1.2f, 0f);
+        camera.update();
+        cameraController.target.set(0f, 1.2f, 0f);
     }
 
     private void resetViewAndAnimation() {
@@ -792,6 +839,16 @@ public class FloorRendererApp extends ApplicationAdapter {
         Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
+    private void renderHudHints() {
+        hudBatch.getProjectionMatrix().setToOrtho2D(0f, 0f, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        hudBatch.begin();
+        hudFont.setColor(1f, 1f, 1f, 1f);
+        float top = Gdx.graphics.getHeight() - 12f;
+        hudFont.draw(hudBatch, "Controls: 1 Top View | 2 Front View | 3 Back View", 10f, top);
+        hudFont.draw(hudBatch, "Replay: SPACE | Reset: R | Move: WASD | Orbit: Mouse Drag", 10f, top - 18f);
+        hudBatch.end();
+    }
+
     @Override
     public void resize(int width, int height) {
         camera.viewportWidth = width;
@@ -818,6 +875,7 @@ public class FloorRendererApp extends ApplicationAdapter {
         modelBatch.end();
 
         renderRayTracedShadows();
+        renderHudHints();
     }
 
     @Override
@@ -851,6 +909,12 @@ public class FloorRendererApp extends ApplicationAdapter {
         }
         if (shadowRenderer != null) {
             shadowRenderer.dispose();
+        }
+        if (hudBatch != null) {
+            hudBatch.dispose();
+        }
+        if (hudFont != null) {
+            hudFont.dispose();
         }
     }
 }
