@@ -7,6 +7,7 @@ package app;
  * Run (cmd.exe):
  * java -Dorg.lwjgl.librarypath="C:\Users\burns\Documents\GitHub\FallingPipeRender_Java\.natives" -cp "C:\Users\burns\Downloads\lwjgl-release-3.3.4-custom\*" app.Main
  */
+// & "C:\Users\joshu\Desktop\Graphics\final\FallingPipeRender_Java\gradlew.bat" run
 
 // java -cp ".\out;C:\Users\burns\Downloads\lwjgl-release-3.3.4-custom\*" app.Main
 
